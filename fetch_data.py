@@ -1,16 +1,16 @@
 import json
 import requests
 
-# Fetch 2024 assistance data from the API
-url = (
-    "https://foreignassistance.gov/api/v1/financials?fiscal_year=2024&limit=1000"
-)
-response = requests.get(url)
+# Set a browser User-Agent header so the API doesn't block the automated request
+headers = {"User-Agent": "Mozilla/5.0"}
+url = "https://foreignassistance.gov/api/v1/financials?fiscal_year=2024&limit=200"
 
-if response.status_code == 200:
+try:
+    response = requests.get(url, headers=headers, timeout=15)
+    response.raise_for_status()
     raw_data = response.json().get("data", [])
-    summary = {}
 
+    summary = {}
     for record in raw_data:
         account = record.get("account_name", "Other")
         disbursed = float(record.get("disbursements", 0) or 0)
@@ -19,9 +19,15 @@ if response.status_code == 200:
             summary[account] = 0
         summary[account] += disbursed
 
-    # Save the processed data into data.json
+    # Save data.json locally
     with open("data.json", "w") as f:
         json.dump(summary, f, indent=2)
-    print("Successfully created data.json")
-else:
-    print("Failed to fetch data from API")
+
+    print("Successfully created data.json!")
+
+except Exception as e:
+    print(f"Error fetching data: {e}")
+    # Create fallback structure so the website doesn't crash completely
+    fallback = {"Status": "API request failed, check workflow log"}
+    with open("data.json", "w") as f:
+        json.dump(fallback, f, indent=2)
