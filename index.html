@@ -1,1 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Foreign Aid Tracker</title>
+</head>
+<body>
+  <h1>Foreign Assistance Funding Tracker</h1>
+  <div id="data">Loading aid data...</div>
 
+  <script>
+    fetch('data.json')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('data').innerText = JSON.stringify(data, null, 2);
+      })
+      .catch(err => {
+        document.getElementById('data').innerText = "Data will appear once the automated script runs.";
+      });
+  </script>
+</body>
+</html>
