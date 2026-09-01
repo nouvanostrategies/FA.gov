@@ -1,49 +1,40 @@
 import json
 import requests
 
-# ForeignAssistance.gov API endpoint
-url = "https://foreignassistance.gov/api/v1/financials?fiscal_year=2024&limit=500"
+# Updated official ForeignAssistance.gov API endpoint hosted on USAID's open data platform
+url = "https://api.usaid.gov/foreignassistance/v1/financials"
 
-# Strict headers to prevent ForeignAssistance.gov from blocking GitHub Actions
+# Parameters for Fiscal Year 2024 data
+params = {
+    "fiscal_year": 2024,
+    "page_size": 250
+}
+
 headers = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
-        " like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://foreignassistance.gov/data",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/json"
 }
 
 try:
-    response = requests.get(url, headers=headers, timeout=25)
+    response = requests.get(url, params=params, headers=headers, timeout=25)
     response.raise_for_status()
     payload = response.json()
 
-    # Handle varying JSON array locations in the API response
-    if isinstance(payload, list):
-        records = payload
-    elif isinstance(payload, dict):
-        records = (
-            payload.get("data")
-            or payload.get("results")
-            or payload.get("items")
-            or []
-        )
-    else:
-        records = []
+    # The API returns data wrapped inside a results or data array
+    records = payload.get("results") or payload.get("data") or []
 
     summary = {}
 
     for item in records:
-        # Flexible key lookup for Account Name
+        # Get account name or agency name
         account = (
             item.get("account_name")
             or item.get("treasury_account_name")
             or item.get("agency_name")
-            or "Uncategorized Program"
+            or "General Foreign Assistance"
         )
 
-        # Flexible key lookup for Disbursements / Obligations
+        # Get disbursement or obligation dollar amounts
         disbursed = float(
             item.get("disbursements")
             or item.get("disbursement_amount")
@@ -53,18 +44,17 @@ try:
 
         summary[account] = summary.get(account, 0) + disbursed
 
-    # If the API returned no matching records, populate with a clear indicator
+    # Fallback structure if the response array was empty
     if not summary:
-        summary = {"Notice": "API connected successfully but returned 0 records for FY2024"}
+        summary = {"Notice": "API connected but no financial records returned for FY2024"}
 
-    # Write output to data.json
+    # Save to data.json
     with open("data.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    print("Successfully wrote data.json from ForeignAssistance.gov API!")
+    print("Successfully fetched ForeignAssistance.gov data!")
 
 except Exception as err:
-    print(f"Fetch Error: {err}")
-    # Write error state to data.json so the website displays the failure reason
+    print(f"Error fetching data: {err}")
     with open("data.json", "w") as f:
         json.dump({"API_Error_Log": str(err)}, f, indent=2)
